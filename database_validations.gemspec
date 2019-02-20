@@ -24,6 +24,7 @@ and ActiveRecord validations with better performance and consistency."
 
   spec.add_development_dependency 'benchmark-ips', '~> 2.7'
   spec.add_development_dependency 'bundler', '~> 1.16'
+  spec.add_development_dependency 'codecov'
   spec.add_development_dependency 'mysql2', '~> 0.5'
   spec.add_development_dependency 'pg', '~> 1.1'
   spec.add_development_dependency 'rake', '~> 10.0'
@@ -31,6 +32,4 @@ and ActiveRecord validations with better performance and consistency."
   spec.add_development_dependency 'rubocop', '~> 0.60'
   spec.add_development_dependency 'rubocop-rspec', '~> 1.30'
   spec.add_development_dependency 'sqlite3', '~> 1.3'
-  spec.add_development_dependency 'codecov'
-
 end
