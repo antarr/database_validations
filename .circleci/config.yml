@@ -23,6 +23,9 @@ jobs:
 
     steps:
       - run:
+          name: Update Package Manager
+          command: run apt-get update
+      - run:
           name: Install mysql-client
           command: sudo apt install mysql-client
 
