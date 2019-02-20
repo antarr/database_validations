@@ -44,6 +44,7 @@ aliases:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
           sudo apt install mysql-client
+
   - &install_dependencies
       steps:
         - checkout
@@ -96,21 +97,6 @@ jobs:
     steps:
       - *attach_workspace
       - *install_system_dependencies
-      # - restore_cache:
-      #     keys:
-      #       - v1-dependencies-{{ checksum "Gemfile.lock" }}
-      #       - v1-dependencies-
-      # - run: bundle exec rails assets:precompile
-      # - save_cache:
-      #     key: v1-dependencies-{{ checksum "Gemfile.lock" }}
-      #     paths:
-      #       - public/assets
-      #       - tmp/cache/assets/sprockets
-      # - persist_to_workspace:
-      #     root: .
-      #     paths:
-      #         - ./public/assets
-      #         - ./tmp/cache/assets/sprockets
 
   specs:
     parallelism: 4
@@ -122,17 +108,17 @@ jobs:
       - image: circleci/mysql:5.7
     <<: *test_steps
 
-workflows:
-  version: 2
-  build-and-test:
-    jobs:
-      - install
-      - build:
-          requires:
-            - install
-      - specs:
-          requires:
-            - build
+# workflows:
+#   version: 2
+#   build-and-test:
+#     jobs:
+#       - install
+#       - build:
+#           requires:
+#             - install
+#       - specs:
+#           requires:
+#             - build
 
 # jobs:
 #   build:
