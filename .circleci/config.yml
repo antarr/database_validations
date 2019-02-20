@@ -19,8 +19,6 @@ jobs:
           MYSQL_ROOT_PASSWORD: ''
           MYSQL_DATABASE: database_validations_test
 
-    working_directory: ~/repo
-
     steps:
       - checkout
 
