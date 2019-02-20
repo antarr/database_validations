@@ -3,97 +3,238 @@
 # Check https://circleci.com/docs/2.0/language-ruby/ for more details
 #
 version: 2
-jobs:
-  build:
+
+aliases:
+  - &defaults
+    docker:
+      - image: circleci/ruby:2.6.1-node-browsers
+        environment: &ruby_environment
+          BUNDLE_APP_CONFIG: ./.bundle/
+          DATABASE_URL: postgres://postgres:circleci_test@localhost:5432/database_validations
+          NODE_VERSION: 8.11.2
+          PGHOST: localhost
+          PGUSER: postgres
+          RACK_ENV: test
+          RAILS_ENV: test
+          RAILS_LOG_LEVEL: error
+          TZ: America/Chicago
     working_directory: ~/database_validations
 
+  - &attach_workspace
+    attach_workspace:
+      at: ~/database_validations
+
+  - &persist_to_workspace
+    persist_to_workspace:
+      root: ~/database_validations
+      paths:
+        - ./
+
+  - &restore_ruby_dependencies
+    restore_cache:
+      keys:
+        - v1-ruby-dependencies-{{ checksum ".ruby-version" }}-{{ checksum "Gemfile.lock" }}
+        - v1-ruby-dependencies-{{ checksum ".ruby-version" }}-
+        - v1-ruby-dependencies-
+
+  - &install_system_dependencies
+      run:
+        name: Install system dependencies
+        command: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          sudo apt install mysql-client
+  - &install_dependencies
+      steps:
+        - checkout
+        - *attach_workspace
+
+        - *install_system_dependencies
+
+        - *restore_ruby_dependencies
+        - run: bundle version
+        - run: bundle install --clean --jobs 4 --path ./vendor/bundle/ --retry 3 && bundle clean
+        - save_cache:
+            key: v1-ruby-dependencies-{{ checksum ".ruby-version" }}-{{ checksum "Gemfile.lock" }}
+            paths:
+              - ./.bundle/
+              - ./vendor/bundle/
+
+        - restore_cache:
+            keys:
+              - v1-node-dependencies-{{ checksum "client/yarn.lock" }}
+              - v1-node-dependencies-
+        - run: node --version
+        - run: cd client && yarn install --frozen-lockfile && cd ..
+        - save_cache:
+            key: v1-node-dependencies-{{ checksum "client/yarn.lock" }}
+            paths:
+              - ./client/node_modules/
+
+        - *persist_to_workspace
+
+  - &test_steps
+      steps:
+        - *attach_workspace
+
+        - *install_system_dependencies
+
+        # - run:
+        #     name: Prepare DB
+        #     command: bundle exec rake db:setup --trace
+        - run:
+            name: Run Specs
+            command: |
+              bundle exec rspec --format RspecJunitFormatter \
+                                --out test_results/rspec.xml \
+                                --format progress \
+                                $(circleci tests glob "spec/**/*_spec.rb" | circleci tests split --split-by=timings)
+        - store_test_results:
+            path: test_results
+
+jobs:
+  install:
+    <<: *defaults
+    <<: *install_dependencies
+
+  build:
+    <<: *defaults
     docker:
-      - image: circleci/ruby:2.4.1-node-browsers
+      - image: circleci/ruby:2.6.1-node-browsers
+        environment: *ruby_environment
       - image: circleci/postgres:10-alpine-ram
-        environment:
-          POSTGRES_USER: postgres
-          POSTGRES_DB:  database_validations_test
       - image: circleci/mysql:5.7
-        environment:
-          MYSQL_ALLOW_EMPTY_PASSWORD: yes
-          MYSQL_ROOT_PASSWORD: ''
-          MYSQL_DATABASE: database_validations_test
-          MYSQL_HOST: 127.0.0.1
-          # MYSQL_ROOT_HOST: %
-
     steps:
-      - run:
-          name: Update Package Manager
-          command: sudo apt-get update
-      - run:
-          name: Install mysql-client
-          command: sudo apt install mysql-client
-
-      - run:
-          name: Install postgresql-client
-          command: sudo apt install -y postgresql-client || true
-
-      - checkout
-
-      # Download and cache dependencies
+      - *attach_workspace
+      - *install_system_dependencies
       - restore_cache:
           keys:
             - v1-dependencies-{{ checksum "Gemfile.lock" }}
-            # fallback to using the latest cache if no exact match is found
             - v1-dependencies-
-
-      - run:
-          name: install dependencies
-          command: |
-            bundle check --path=vendor/bundle || bundle install --jobs=4 --retry=3 --path vendor/bundle
-
-      - run:
-          name: Wait for MYSQL Server
-          # preinstalled in circleci/* docker image
-          command: dockerize -wait tcp://127.0.0.1:3306 -timeout 120s
-
-      - run:
-          name: Wait for Postgresql Server
-          command: dockerize -wait tcp://localhost:5432 -timeout 1m
-
-      # - run:
-      #     name: Waiting for PostgreSQL to start
-      #     command: |
-      #       for i in `seq 1 10`;
-      #       do
-      #         nc -z localhost 5432 && echo Success && exit 0
-      #         echo -n .
-      #         sleep 2
-      #       done
-      #       echo Failed waiting for Postgres && exit 1
-
+      - run: bundle exec rails assets:precompile
       - save_cache:
-          paths:
-            - ./vendor/bundle
           key: v1-dependencies-{{ checksum "Gemfile.lock" }}
+          paths:
+            - public/assets
+            - tmp/cache/assets/sprockets
+      - persist_to_workspace:
+          root: .
+          paths:
+              - ./public/assets
+              - ./tmp/cache/assets/sprockets
 
-      # Database setup
-      # - run: bundle exec rake db:create
-      # - run: bundle exec rake db:schema:load
+  specs:
+    parallelism: 8
+    <<: *defaults
+    docker:
+      - image: circleci/ruby:2.6.1-node-browsers
+        environment: *ruby_environment
+      - image: circleci/postgres:10-alpine-ram
+      - image: circleci/mysql:5.7
+    <<: *test_steps
 
-      # run tests!
-      - run:
-          name: run tests
-          command: |
-            mkdir /tmp/test-results
-            TEST_FILES="$(circleci tests glob "spec/**/*_spec.rb" | \
-              circleci tests split --split-by=timings)"
+workflows:
+  version: 2
+  build-and-test:
+    jobs:
+      - install
+      - build:
+          requires:
+            - install
+      - specs:
+          requires:
+            - build
 
-            bundle exec rspec \
-              --format progress \
-              --format RspecJunitFormatter \
-              --out /tmp/test-results/rspec.xml \
-              --format progress \
-              $TEST_FILES
+# jobs:
+#   build:
 
-      # collect reports
-      - store_test_results:
-          path: /tmp/test-results
-      - store_artifacts:
-          path: /tmp/test-results
-          destination: test-results
+#     docker:
+#       - image: circleci/ruby:2.4.1-node-browsers
+#       - image: circleci/postgres:10-alpine-ram
+#         environment:
+#           POSTGRES_USER: postgres
+#           POSTGRES_DB:  database_validations_test
+#       - image: circleci/mysql:5.7
+#         environment:
+#           MYSQL_ALLOW_EMPTY_PASSWORD: yes
+#           MYSQL_ROOT_PASSWORD: ''
+#           MYSQL_DATABASE: database_validations_test
+#           MYSQL_HOST: 127.0.0.1
+#           # MYSQL_ROOT_HOST: %
+
+#     steps:
+#       - run:
+#           name: Update Package Manager
+#           command: sudo apt-get update
+#       - run:
+#           name: Install mysql-client
+#           command: sudo apt install mysql-client
+
+#       - run:
+#           name: Install postgresql-client
+#           command: sudo apt install -y postgresql-client || true
+
+#       - checkout
+
+#       # Download and cache dependencies
+#       - restore_cache:
+#           keys:
+#             - v1-dependencies-{{ checksum "Gemfile.lock" }}
+#             # fallback to using the latest cache if no exact match is found
+#             - v1-dependencies-
+
+#       - run:
+#           name: install dependencies
+#           command: |
+#             bundle check --path=vendor/bundle || bundle install --jobs=4 --retry=3 --path vendor/bundle
+
+#       - run:
+#           name: Wait for MYSQL Server
+#           # preinstalled in circleci/* docker image
+#           command: dockerize -wait tcp://127.0.0.1:3306 -timeout 120s
+
+#       - run:
+#           name: Wait for Postgresql Server
+#           command: dockerize -wait tcp://localhost:5432 -timeout 1m
+
+#       # - run:
+#       #     name: Waiting for PostgreSQL to start
+#       #     command: |
+#       #       for i in `seq 1 10`;
+#       #       do
+#       #         nc -z localhost 5432 && echo Success && exit 0
+#       #         echo -n .
+#       #         sleep 2
+#       #       done
+#       #       echo Failed waiting for Postgres && exit 1
+
+#       - save_cache:
+#           paths:
+#             - ./vendor/bundle
+#           key: v1-dependencies-{{ checksum "Gemfile.lock" }}
+
+#       # Database setup
+#       # - run: bundle exec rake db:create
+#       # - run: bundle exec rake db:schema:load
+
+#       # run tests!
+#       - run:
+#           name: run tests
+#           command: |
+#             mkdir /tmp/test-results
+#             TEST_FILES="$(circleci tests glob "spec/**/*_spec.rb" | \
+#               circleci tests split --split-by=timings)"
+
+#             bundle exec rspec \
+#               --format progress \
+#               --format RspecJunitFormatter \
+#               --out /tmp/test-results/rspec.xml \
+#               --format progress \
+#               $TEST_FILES
+
+#       # collect reports
+#       - store_test_results:
+#           path: /tmp/test-results
+#       - store_artifacts:
+#           path: /tmp/test-results
+#           destination: test-results
