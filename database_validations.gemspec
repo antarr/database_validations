@@ -29,6 +29,7 @@ and ActiveRecord validations with better performance and consistency."
   spec.add_development_dependency 'pg', '~> 1.1'
   spec.add_development_dependency 'rake', '~> 10.0'
   spec.add_development_dependency 'rspec', '~> 3.0'
+  spec.add_development_dependency 'rspec_junit_formatter'
   spec.add_development_dependency 'rubocop', '~> 0.60'
   spec.add_development_dependency 'rubocop-rspec', '~> 1.30'
   spec.add_development_dependency 'sqlite3', '~> 1.3'
