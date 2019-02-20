@@ -13,7 +13,15 @@ jobs:
       # CircleCI maintains a library of pre-built images
       # documented at https://circleci.com/docs/2.0/circleci-images/
       - image: circleci/postgres:10-alpine-ram
+      environment:
+        POSTGRES_USER: root
+        POSTGRES_DB:  database_validations_test
       - image: circleci/mysql:8.0.13-ram
+      # - image: tkuchiki/delayed-mysql
+        environment:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_ROOT_PASSWORD: ''
+          MYSQL_DATABASE: database_validations_test
 
     working_directory: ~/repo
 
