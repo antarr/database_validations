@@ -64,12 +64,6 @@ aliases:
             keys:
               - v1-node-dependencies-{{ checksum "client/yarn.lock" }}
               - v1-node-dependencies-
-        - run: node --version
-        - run: cd client && yarn install --frozen-lockfile && cd ..
-        - save_cache:
-            key: v1-node-dependencies-{{ checksum "client/yarn.lock" }}
-            paths:
-              - ./client/node_modules/
 
         - *persist_to_workspace
 
@@ -124,7 +118,7 @@ jobs:
               - ./tmp/cache/assets/sprockets
 
   specs:
-    parallelism: 8
+    parallelism: 4
     <<: *defaults
     docker:
       - image: circleci/ruby:2.6.1-node-browsers
