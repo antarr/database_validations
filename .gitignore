@@ -16,3 +16,6 @@
 example/db/*.sqlite3
 example/tmp
 example/log
+
+# rbenv
+.ruby-version
