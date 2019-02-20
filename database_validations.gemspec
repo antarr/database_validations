@@ -31,4 +31,6 @@ and ActiveRecord validations with better performance and consistency."
   spec.add_development_dependency 'rubocop', '~> 0.60'
   spec.add_development_dependency 'rubocop-rspec', '~> 1.30'
   spec.add_development_dependency 'sqlite3', '~> 1.3'
+  spec.add_development_dependency 'codecov'
+
 end
