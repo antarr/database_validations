@@ -18,7 +18,7 @@ jobs:
           MYSQL_ALLOW_EMPTY_PASSWORD: yes
           MYSQL_ROOT_PASSWORD: ''
           MYSQL_DATABASE: database_validations_test
-          # MYSQL_HOST: 127.0.0.1
+          MYSQL_HOST: 127.0.0.1
           # MYSQL_ROOT_HOST: %
 
     steps:
