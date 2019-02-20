@@ -5,19 +5,15 @@
 version: 2
 jobs:
   build:
-    docker:
-      # specify the version you desire here
-      - image: circleci/ruby:2.4.1-node-browsers
+    working_directory: ~/database_validations
 
-      # Specify service dependencies here if necessary
-      # CircleCI maintains a library of pre-built images
-      # documented at https://circleci.com/docs/2.0/circleci-images/
+    docker:
+      - image: circleci/ruby:2.4.1-node-browsers
       - image: circleci/postgres:10-alpine-ram
-      environment:
-        POSTGRES_USER: root
-        POSTGRES_DB:  database_validations_test
+        environment:
+          POSTGRES_USER: root
+          POSTGRES_DB:  database_validations_test
       - image: circleci/mysql:8.0.13-ram
-      # - image: tkuchiki/delayed-mysql
         environment:
           MYSQL_ALLOW_EMPTY_PASSWORD: yes
           MYSQL_ROOT_PASSWORD: ''
@@ -38,7 +34,9 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            bundle install --jobs=4 --retry=3 --path vendor/bundle
+            bundle check --path=vendor/bundle || bundle install --jobs=4 --retry=3 --path vendor/bundle
+
+      - run: sudo apt install -y postgresql-client || true
 
       - save_cache:
           paths:
